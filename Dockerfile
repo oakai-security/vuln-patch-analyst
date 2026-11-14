@@ -29,7 +29,5 @@ ENV UDS_REQUEST_SOCKET="/run/oakai/request.sock"
 RUN mkdir -p /run/oakai && chown -R vuln-patch:oakai /run/oakai && chmod 770 /run/oakai
 
 USER vuln-patch:oakai
-
-EXPOSE 0
 ENTRYPOINT ["vuln-patch-analyst"]
 CMD ["serve"]

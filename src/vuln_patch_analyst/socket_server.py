@@ -139,6 +139,7 @@ class UdsPatchServer:
                 client.connect(self.downstream_socket)
                 client.sendall(json.dumps(payload).encode("utf-8"))
                 client.shutdown(socket.SHUT_WR)
+                client.recv(8192)
                 logger.info("Forwarded %d unfixable CVEs to exception requester", len(payload))
         except OSError as err:
             logger.warning("Downstream requester socket %s unreachable: %s", self.downstream_socket, err)

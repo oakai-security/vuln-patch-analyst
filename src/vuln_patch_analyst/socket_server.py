@@ -15,7 +15,9 @@ from .schemas import EvaluationInput, RemediationVerdict
 logger = logging.getLogger(__name__)
 
 DEFAULT_PATCH_SOCKET = os.environ.get("UDS_PATCH_SOCKET", "/run/oakai/patch.sock")
-DEFAULT_REQUEST_SOCKET = os.environ.get("UDS_REQUEST_SOCKET", "/run/oakai/request.sock")
+DEFAULT_REQUEST_SOCKET = os.environ.get(
+    "UDS_DOWNSTREAM_SOCKET", os.environ.get("UDS_REQUEST_SOCKET", "/run/oakai/request.sock")
+)
 
 
 class UdsPatchServer:

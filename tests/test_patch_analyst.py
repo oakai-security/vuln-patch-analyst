@@ -185,3 +185,68 @@ def test_uds_socket_roundtrip(mocker):
         verdicts = json.loads(response_raw)
         assert len(verdicts) == 1
         assert verdicts[0]["status"] == "UNRESOLVED_FORWARD"
+
+
+def test_purge_refused_without_memscan_snapshot(tmp_path):
+    """With full visibility required, a missing snapshot must block any purge."""
+    from vuln_patch_analyst.safety_engine import PackageSafetyEngine
+
+    engine = PackageSafetyEngine(
+        proc_root=str(tmp_path),
+        memmap_path=str(tmp_path / "missing.json"),
+        require_full_visibility=True,
+    )
+    engine._get_installed_reverse_dependencies = lambda pkg: []
+    engine._simulate_purge = lambda pkgs: (list(pkgs), True)
+    res = engine.evaluate_safe_purge("some-unprotected-pkg")
+    assert res.is_safe_to_purge is False
+    assert "memscan snapshot" in res.rejection_reason
+
+
+def test_remediation_manager_queues_host_remediation_when_rootless(tmp_path, mocker):
+    """When auto_apply is True inside a rootless container, verified actions queue for the host reconciler."""
+    queue_file = tmp_path / "pending_remediations.json"
+
+    mock_apt = mocker.Mock(spec=AptChecker)
+    mock_apt.check_update_available.return_value = PatchCheckResult(
+        package_name="unused-pkg",
+        installed_version="1.0",
+        is_upgradable=False,
+    )
+
+    mock_safety = mocker.Mock(spec=PackageSafetyEngine)
+    mock_safety.evaluate_safe_purge.return_value = SafePurgeCheckResult(
+        package_name="unused-pkg",
+        is_safe_to_purge=True,
+        candidate_pruning_branch=["unused-pkg"],
+    )
+
+    manager = RemediationManager(
+        apt_checker=mock_apt,
+        safety_engine=mock_safety,
+        auto_apply=True,
+        remediation_queue_path=str(queue_file),
+    )
+    mocker.patch.object(manager, "_apply_package_purge", return_value=False)
+
+    finding = EvaluationInput(
+        cve_id="CVE-2026-1234",
+        package_name="unused-pkg",
+        installed_version="1.0",
+        cvss_base=7.5,
+        epss_score=0.01,
+        epss_percentile=0.20,
+        in_memory=False,
+        threat_level="LOW",
+        verdict_rationale="Unused package",
+    )
+
+    verdict = manager.process_finding(finding)
+    assert verdict.status == "PURGED"
+    assert "oakai-host-reconciler" in verdict.action_summary
+    assert queue_file.exists()
+    queued = json.loads(queue_file.read_text(encoding="utf-8"))
+    assert len(queued) == 1
+    assert queued[0]["action"] == "purge"
+    assert queued[0]["packages"] == ["unused-pkg"]
+

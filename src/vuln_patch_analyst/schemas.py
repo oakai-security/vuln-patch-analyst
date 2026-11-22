@@ -15,6 +15,7 @@ class EvaluationInput(BaseModel):
     epss_score: float = Field(..., ge=0.0, le=1.0)
     epss_percentile: float = Field(..., ge=0.0, le=1.0)
     in_memory: bool
+    memory_visibility: str = "partial"
     matching_pids: list[int] = Field(default_factory=list)
     threat_level: str
     verdict_rationale: str

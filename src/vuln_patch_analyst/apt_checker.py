@@ -18,7 +18,15 @@ class AptChecker:
         """Check if an updated version of package_name exists in configured APT repositories."""
         try:
             result = subprocess.run(
-                ["apt-cache", "policy", package_name],
+                [
+                    "apt-cache",
+                    "-o",
+                    "Dir::Cache::pkgcache=",
+                    "-o",
+                    "Dir::Cache::srcpkgcache=",
+                    "policy",
+                    package_name,
+                ],
                 capture_output=True,
                 text=True,
                 timeout=self.timeout_seconds,
